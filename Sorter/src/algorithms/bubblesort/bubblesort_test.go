@@ -11,7 +11,7 @@ import (
 测试冒泡排序
 */
 func TestBubbleSort(t *testing.T) {
-	array := make([]int, 2e8)
+	array := make([]int, 2e7)
 	for index := 0; index < cap(array); index++ {
 		array[index] = rand.Int()
 	}

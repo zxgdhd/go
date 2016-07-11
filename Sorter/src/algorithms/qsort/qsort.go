@@ -2,7 +2,10 @@ package sort
 
 import (
 	"errors"
-	_ "fmt"
+	"fmt"
+	"runtime"
+	"sync"
+	_ "time"
 )
 
 /*
@@ -84,8 +87,8 @@ func (list *linkedNode) get() (*node, error) {
 
 }
 
-func QsortUseQueue(array []int) {
-	head := &node{0, len(array) - 1, nil}
+func QsortUseQueue(array []int, left, right int) {
+	head := &node{left, right, nil}
 	nodes := &linkedNode{head, head, 1}
 	for nodes.count != 0 {
 		currentnode, err := nodes.get()
@@ -128,4 +131,80 @@ func QsortUseQueue(array []int) {
 			nodes.add(currentnode)
 		}
 	}
+}
+
+func QsortUseAllProcs(array []int) {
+	num := runtime.NumCPU()
+	runtime.GOMAXPROCS(num)
+	length := len(array)
+	pizz := length / num
+	nodes := make(chan []int, num)
+	wg := new(sync.WaitGroup)
+	for index := 0; index < num; index++ {
+		right := (index + 1) * pizz
+		if index == num-1 {
+			go goSort(array, index*pizz, length-1, nodes, wg)
+		} else {
+			go goSort(array, index*pizz, right-1, nodes, wg)
+		}
+		wg.Add(1)
+	}
+	for count := 1; count < num; count++ {
+		node1 := <-nodes
+		node2 := <-nodes
+		go MergeSort(node1, node2, nodes, wg)
+		wg.Add(1)
+	}
+	wg.Wait()
+	array = <-nodes
+	for _, value := range array {
+		fmt.Print(value, "\n")
+	}
+}
+
+func goSort(array []int, left, right int, result chan<- []int, wg *sync.WaitGroup) {
+	Qsort(array, left, right)
+	result <- array[left : right+1]
+	wg.Done()
+}
+
+func MergeSort(node1 []int, node2 []int, merged chan<- []int, wg *sync.WaitGroup) {
+	l1 := len(node1)
+	l2 := len(node2)
+	mergeResult := make([]int, l1+l2)
+	i1 := 0
+	i2 := 0
+	var ii int
+	for ii, _ := range mergeResult {
+		if i1 < l1 && i2 < l2 {
+			if node1[i1] < node2[i2] {
+				mergeResult[ii] = node1[i1]
+				i1++
+			} else {
+				mergeResult[ii] = node2[i2]
+				i2++
+			}
+			continue
+		}
+		break
+	}
+	if i1 == l1 {
+		for ; i2 < l2; i2++ {
+			mergeResult[ii] = node2[i2]
+			ii++
+		}
+	}
+	if i2 == l2 {
+		for ; i1 < l1; i1++ {
+			mergeResult[ii] = node1[i1]
+			ii++
+		}
+	}
+	defer func() {
+		if v := recover(); v != nil {
+			fmt.Printf("l1=%d\tl2=%d\ti1=%d\ti2=%d\n", l1, l2, i1, i2)
+		}
+	}()
+	merged <- mergeResult
+	wg.Done()
 }
