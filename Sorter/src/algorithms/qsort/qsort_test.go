@@ -16,11 +16,9 @@ func TestQsortUseAllProcs(t *testing.T) {
 	for index := 0; index < len(array)-1; index++ {
 		fmt.Printf("%d\n", array[index])
 		if array[index] > array[index+1] {
-			flag = true
-			//			break
+			goto hasError
 		}
 	}
-	if flag {
-		t.Error("排序失败！")
-	}
+hasError:
+	t.Error("排序失败！")
 }
